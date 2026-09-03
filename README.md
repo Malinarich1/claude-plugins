@@ -1,7 +1,8 @@
 # claude-plugins
 
-Plugins de Claude Code del equipo. Hoy hay uno: **trelloutlook**, que le enseña a un agente a
-trabajar con nuestro kanban por su API REST.
+Plugins de Claude Code para trabajar con **TrellOutlook**, un kanban con API propia. Hoy hay uno:
+**trelloutlook**, que le enseña a un agente a operar el tablero — por herramientas tipadas (MCP) o
+por la API REST.
 
 ## Instalar (una vez por máquina)
 
@@ -10,8 +11,10 @@ trabajar con nuestro kanban por su API REST.
 /plugin install trelloutlook@malinarich-plugins
 ```
 
-Hace falta acceso de **lectura** a este repo y que tu `git` ya autentique contra GitHub (SSH con
-la clave cargada en el agente, o `gh auth login`). El atajo `owner/repo` clona por SSH.
+El repo es público: no hace falta ningún permiso ni tener `git` autenticado contra GitHub.
+
+**El orden importa**: configurá el token (abajo) *antes* de instalar. Si el plugin se instala sin la
+variable, el servidor de herramientas no conecta y te queda la skill sin sus herramientas.
 
 ## Configurar tu token (una vez, y no va en este repo)
 
@@ -26,13 +29,18 @@ Se define en tu `settings.json` personal — en Windows, `C:\Users\<vos>\.claude
 }
 ```
 
-El token se emite desde el panel (sección "Mi IA"). Si no tenés uno, pedíselo a Nicolás. **Nunca**
-lo pongas en un archivo de este repo ni en un comentario de una tarjeta.
+El token se emite desde el panel de TrellOutlook (sección "Mi IA"); si no tenés uno, pedíselo a
+quien administre tu instalación. **Nunca** lo pongas en un archivo de este repo ni en un comentario
+de una tarjeta: este repo es público, y los comentarios los ven los clientes del tablero.
 
 ## Usarlo
 
 La skill se invoca sola cuando le pedís algo del tablero ("trabajá la tarjeta X", "qué hay
-pendiente", "dejale un prompt al front"). También podés llamarla a mano con `/trelloutlook:kanban`.
+pendiente", "dejale un pedido a la otra parte"). También podés llamarla a mano con
+`/trelloutlook:kanban`.
+
+Para comprobar que quedó todo: `/mcp` tiene que listar **trelloutlook** conectado con 6
+herramientas. Si aparece la skill pero no las herramientas, casi siempre falta `TRELLOUTLOOK_PAT`.
 
 ## Actualizar
 
