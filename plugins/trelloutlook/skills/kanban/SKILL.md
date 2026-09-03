@@ -219,7 +219,7 @@ Comentario con qué hiciste, qué archivos tocaste, **cómo verificarlo**, **dó
 
 Si el proyecto tiene repos cargados (vienen en `repos` de `GET /boards`), registrá la rama: `POST /tasks/{id}/branches {"repo_id":"…","branch":"…"}`, con un repo de **ese** tablero. Una rama por repo y tarea: la segunda da 409 y se edita con `PATCH /tasks/{id}/branches/{branchID}`. Si el proyecto no tiene repos, la rama va en el comentario.
 
-Antes de mover, mirá `metadata.area`: si dice que la tarjeta es de las dos partes y solo hiciste tu mitad, PRUEBA INTERNA es mentira. Comentás lo tuyo y hacés la devolución completa: `move` a **ABIERTO** (la tarjeta está en EN PROCESO, la moviste vos al arrancar — no se queda sola) + `PATCH {"metadata":{"area":"…"}}` con el área que queda trabajando + dev-prompt con `metadata.prompt_tarea_id` = el id de esa tarjeta; es la receta de "Me trabé: depende de la otra parte". PRUEBA INTERNA es cuando la tarjeta **entera** está lista para que la prueben.
+Antes de mover, preguntate si está lista la tarjeta **entera**, y no solo si `metadata.area` te nombra a vos. El área es una etiqueta y se queda vieja: puede decir BACK mientras el «qué hay que hacer» de la descripción pide una pantalla que nadie hizo. **Lo que manda es el alcance escrito en la tarjeta**, y muchas veces esa misma descripción ya dice quién sigue («coordinar con el front», «prompt para=front al cerrar el back»): eso es una instrucción, no un comentario al pasar. Si de ese alcance queda algo para la otra parte, PRUEBA INTERNA es mentira. Comentás lo tuyo y hacés la devolución completa: `move` a **ABIERTO** (la tarjeta está en EN PROCESO, la moviste vos al arrancar — no se queda sola) + `PATCH {"metadata":{"area":"…"}}` con el área que queda trabajando + dev-prompt con `metadata.prompt_tarea_id` = el id de esa tarjeta; es la receta de "Me trabé: depende de la otra parte". PRUEBA INTERNA es cuando la tarjeta **entera** está lista para que la prueben.
 
 El avance va **en un comentario**, no reescribiendo la descripción: el pedido original del humano queda intacto. `description` **no** hace shallow-merge, un PATCH la reemplaza entera. Solo la tocás si está **vacía**: `PATCH {"description":"..."}` en texto plano (no armes `description_rich`). Si está **a medias pero con contenido del humano, no la patchees**: mandar solo `description` descarta el doc rico y libera sus imágenes embebidas, o sea le borrás el formato y las capturas. Tu complemento va en un comentario.
 
@@ -232,6 +232,19 @@ Comentás exactamente qué te frena y qué necesitás para seguir. **Dejás la t
 **Con herramientas:** `mover_tarea accion="devolver"` con `nota=` y `pedido=` hace los cuatro pasos
 de una vez y sin que puedas olvidarte del enlace. Si es una vuelta nueva de un hilo que ya existe,
 pasá `responde_a=<id del prompt anterior>`: encadena y cierra el eslabón viejo.
+
+**Paso cero, antes de escribir el pedido: leé el hilo que ya existe.**
+`GET /tasks/{id}/prompts`, con el id de la **tarjeta**. Una tarjeta con historia ya fue y volvió, y
+el prompt cerrado de la vuelta anterior te dice dos cosas que la descripción no dice: **qué
+entregó ya la otra parte** —volver a pedirlo la manda a rehacer trabajo hecho, y encima firmado
+por tu humano— y **qué quedó parado a propósito**, que casi siempre es una condición que
+acordaron entre ustedes («esto cuando exista la segunda org») y que puede seguir sin cumplirse.
+Si lo que reactivás estaba parado por acuerdo, **decilo en el pedido** y dejale la salida de
+responder `requiere` para sostener el orden pactado: reactivar no es exigir.
+
+Y si es una vuelta nueva de ese hilo, el prompt nuevo lleva `metadata.prompt_padre` = el id del
+anterior. `prompt_padre` no es solo para cuando no estás de acuerdo: es para toda vuelta que
+continúa un prompt ya cerrado.
 
 Por REST son cuatro pasos y hay que hacerlos todos: comentás qué falta → `move` a **ABIERTO** con las instrucciones → `PATCH {"metadata":{"area":"…"}}` → dev-prompt para el agente de esa parte **con `metadata.prompt_tarea_id` = el id de esa misma tarjeta**. Si lo omitís, el backend crea una tarjeta de trabajo nueva: te quedan dos para lo mismo y el hilo partido.
 
