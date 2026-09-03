@@ -139,11 +139,27 @@ PRUEBA     = cols["PRUEBA INTERNA"]
 |---|---|
 | ABIERTO | el humano, o **vos** (hallazgo nuevo / devolución a la otra parte) |
 | EN PROCESO | **vos**, al arrancar. Verla ahí ya avisa que alguien la está haciendo |
-| PRUEBA INTERNA | **vos**, al terminar. **Es tu estado terminal: nunca pasás de acá** |
+| PRUEBA INTERNA | **vos**, al terminar — pero solo si la tarjeta ENTERA está lista, no solo tu mitad. **Es tu estado terminal: nunca pasás de acá** |
 | La de rechazo del cliente (`kind: "rechazado"`) | **vos**, y solo si tu humano te lo pide: es la única salida de la zona del cliente que sigue siendo tuya |
 | REVISIÓN y todo lo que sigue (`revision`, `ok`, `cerrado`) | **solo humanos**, en los dos sentidos: ni las llevás ahí ni las sacás de ahí |
 
 REVISIÓN es la puerta al **cliente final**, no una revisión interna: un humano prueba primero. No hay claim para tarjetas comunes (el claim existe solo para los dev-prompts).
+
+**A REVISIÓN solo va una tarjeta 100% terminada**, lista para probarse ENTERA. No "la mitad que
+a mí me tocaba": la tarjeta completa, funcionando de punta a punta, como la va a ver el
+cliente. Si algo de su alcance no está —típicamente el back está pero la pantalla no—, no es
+que esté "casi": **no está**, y su lugar es ABIERTO, para que la trabaje la parte que
+corresponda.
+
+**Y esto sí es tuyo, aunque vos no muevas a REVISIÓN.** Es el error más común del tablero y la
+forma de cometerlo es esta: dejás en PRUEBA INTERNA una tarjeta a la que le falta la otra
+mitad. PRUEBA INTERNA es la **antesala** de REVISIÓN, no un cajón de "listo lo mío": el humano
+prueba lo que puede ver, le funciona, y la empuja al cliente. Para cuando se descubre que
+faltaba la pantalla, la tarjeta ya cruzó y sacarla de ahí no lo podés hacer vos.
+
+O sea que la pregunta antes de mover a PRUEBA INTERNA no es *"¿terminé?"* sino **"¿si esto se
+va al cliente tal como está, se sostiene?"**. Si la respuesta es no, va a ABIERTO con la
+devolución completa (ver *"Terminé"*), no a PRUEBA INTERNA.
 
 **Esto no es disciplina, es el servidor.** Con tu PAT, por REST, un movimiento que entre o salga de
 esa zona responde **403**, y también crear una tarjeta directamente ahí con `column_id`. Se valida
@@ -219,7 +235,7 @@ Comentario con qué hiciste, qué archivos tocaste, **cómo verificarlo**, **dó
 
 Si el proyecto tiene repos cargados (vienen en `repos` de `GET /boards`), registrá la rama: `POST /tasks/{id}/branches {"repo_id":"…","branch":"…"}`, con un repo de **ese** tablero. Una rama por repo y tarea: la segunda da 409 y se edita con `PATCH /tasks/{id}/branches/{branchID}`. Si el proyecto no tiene repos, la rama va en el comentario.
 
-Antes de mover, preguntate si está lista la tarjeta **entera**, y no solo si `metadata.area` te nombra a vos. El área es una etiqueta y se queda vieja: puede decir BACK mientras el «qué hay que hacer» de la descripción pide una pantalla que nadie hizo. **Lo que manda es el alcance escrito en la tarjeta**, y muchas veces esa misma descripción ya dice quién sigue («coordinar con el front», «prompt para=front al cerrar el back»): eso es una instrucción, no un comentario al pasar. Si de ese alcance queda algo para la otra parte, PRUEBA INTERNA es mentira. Comentás lo tuyo y hacés la devolución completa: `move` a **ABIERTO** (la tarjeta está en EN PROCESO, la moviste vos al arrancar — no se queda sola) + `PATCH {"metadata":{"area":"…"}}` con el área que queda trabajando + dev-prompt con `metadata.prompt_tarea_id` = el id de esa tarjeta; es la receta de "Me trabé: depende de la otra parte". PRUEBA INTERNA es cuando la tarjeta **entera** está lista para que la prueben.
+Antes de mover, preguntate si está lista la tarjeta **entera**, y no solo si `metadata.area` te nombra a vos. El área es una etiqueta y se queda vieja: puede decir BACK mientras el «qué hay que hacer» de la descripción pide una pantalla que nadie hizo. **Lo que manda es el alcance escrito en la tarjeta**, y muchas veces esa misma descripción ya dice quién sigue («coordinar con el front», «prompt para=front al cerrar el back»): eso es una instrucción, no un comentario al pasar. Si de ese alcance queda algo para la otra parte, PRUEBA INTERNA es mentira. Comentás lo tuyo y hacés la devolución completa: `move` a **ABIERTO** (la tarjeta está en EN PROCESO, la moviste vos al arrancar — no se queda sola) + `PATCH {"metadata":{"area":"…"}}` con el área que queda trabajando + dev-prompt con `metadata.prompt_tarea_id` = el id de esa tarjeta; es la receta de "Me trabé: depende de la otra parte". PRUEBA INTERNA es cuando la tarjeta **entera** está lista para que la prueben. Dicho al revés, que es como se comete el error: dejar ahí una tarjeta a la que le falta la otra mitad no la deja "casi lista", la manda al cliente a medio hacer, porque el humano prueba lo que ve, le funciona y la empuja a REVISIÓN. Desde ahí no la podés sacar.
 
 El avance va **en un comentario**, no reescribiendo la descripción: el pedido original del humano queda intacto. `description` **no** hace shallow-merge, un PATCH la reemplaza entera. Solo la tocás si está **vacía**: `PATCH {"description":"..."}` en texto plano (no armes `description_rich`). Si está **a medias pero con contenido del humano, no la patchees**: mandar solo `description` descarta el doc rico y libera sus imágenes embebidas, o sea le borrás el formato y las capturas. Tu complemento va en un comentario.
 
