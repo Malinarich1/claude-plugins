@@ -43,12 +43,21 @@ pendiente", "dejale un prompt al front"). También podés llamarla a mano con `/
 No usamos número de versión: cada commit de este repo es la versión. Al actualizar, se toma el
 último commit de `main`.
 
-## Cómo está armado
+## Qué trae
+
+**La skill** (`/trelloutlook:kanban`): el criterio de trabajo. Qué columna mueve el agente y cuál
+no, dónde escribe el avance, qué hace cuando se traba.
+
+**Las herramientas** (servidor MCP): seis verbos del flujo —buscar, ver, mover, comentar, crear y
+atender un pedido de la bandeja— servidos por el backend. No hay nada que instalar: se conectan
+solas con tu token. Las reglas están dentro de las herramientas, no solo escritas: no existe forma
+de mover una tarjeta a REVISIÓN, ni de borrar, ni de reescribir la descripción de un humano.
 
 ```
 .claude-plugin/marketplace.json          el catálogo (lo que instala el comando de arriba)
 plugins/trelloutlook/
   .claude-plugin/plugin.json             el manifiesto del plugin
+  .mcp.json                              conexión al servidor de herramientas
   skills/kanban/SKILL.md                 la skill: el criterio de trabajo
 ```
 

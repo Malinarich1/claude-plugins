@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "trelloutlook": {
+      "type": "http",
+      "url": "https://lectorcorreotrello2-backend.fly.dev/api/v1/mcp",
+      "headers": {
+        "Authorization": "Bearer ${TRELLOUTLOOK_PAT}"
+      }
+    }
+  }
+}
