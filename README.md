@@ -16,22 +16,30 @@ El repo es público: no hace falta ningún permiso ni tener `git` autenticado co
 **El orden importa**: configurá el token (abajo) *antes* de instalar. Si el plugin se instala sin la
 variable, el servidor de herramientas no conecta y te queda la skill sin sus herramientas.
 
-## Configurar tu token (una vez, y no va en este repo)
+## Tu token
 
-Cada uno usa **su** token personal de TrellOutlook, así lo que hace su IA queda atribuido a él.
-Se define en tu `settings.json` personal — en Windows, `C:\Users\<vos>\.claude\settings.json`:
+Cada uno usa **su** token personal de TrellOutlook, así lo que hace su IA queda atribuido a él. El
+plugin te lo **pide al instalarlo** y lo guarda en el almacenamiento seguro del sistema (llavero o
+archivo de credenciales), no en un archivo de texto.
 
-```json
-{
-  "env": {
-    "TRELLOUTLOOK_PAT": "lct_pat_..."
-  }
-}
+Si preferís pasarlo en el mismo comando en vez de que te lo pregunte:
+
+```
+claude plugin install trelloutlook@malinarich-plugins --config TRELLOUTLOOK_PAT=lct_pat_... --scope user
 ```
 
+Ojo con esa variante: **el token te queda en el historial del shell**. Si no te importa, es un paso
+menos; si te importa, dejá que te lo pregunte.
+
 El token se emite desde el panel de TrellOutlook (sección "Mi IA"); si no tenés uno, pedíselo a
-quien administre tu instalación. **Nunca** lo pongas en un archivo de este repo ni en un comentario
-de una tarjeta: este repo es público, y los comentarios los ven los clientes del tablero.
+quien administre tu instalación. Se muestra **una sola vez**. **Nunca** lo pongas en un archivo de
+este repo ni en un comentario de una tarjeta: este repo es público, y los comentarios los ven los
+clientes del tablero.
+
+> **Si además vas a usar la API REST a mano** (para lo que las herramientas no cubren: adjuntos,
+> ramas, repos, responsables), tu shell necesita el token en la variable de entorno
+> `TRELLOUTLOOK_PAT`. La configuración del plugin **no** la exporta: alimenta al servidor de
+> herramientas y nada más.
 
 ## Usarlo
 

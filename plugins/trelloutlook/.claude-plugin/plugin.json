@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "trelloutlook",
   "displayName": "TrellOutlook",
-  "description": "Trabajar el kanban TrellOutlook por su API REST: leer el tablero, tomar y mover tarjetas, comentar el avance y dejar dev-prompts.",
+  "description": "Trabajar el kanban TrellOutlook: leer el tablero, tomar y mover tarjetas, comentar el avance y dejar pedidos a la otra parte del equipo. Trae seis herramientas tipadas y el criterio de trabajo.",
   "author": {
     "name": "Nicolas Malinarich"
   },
@@ -13,5 +13,14 @@
     "kanban",
     "tablero",
     "dev-prompts"
-  ]
+  ],
+  "userConfig": {
+    "TRELLOUTLOOK_PAT": {
+      "type": "string",
+      "title": "Token personal de TrellOutlook",
+      "description": "El token que emitis desde el panel, seccion \"Mi IA\" (empieza con lct_pat_). Se muestra UNA sola vez: copialo cuando lo veas. Es personal: todo lo que haga tu agente queda atribuido a vos.",
+      "required": true,
+      "sensitive": true
+    }
+  }
 }

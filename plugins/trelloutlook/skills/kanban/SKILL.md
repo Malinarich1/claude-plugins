@@ -33,8 +33,12 @@ Tres cosas que conviene saber antes de usarlas:
 
 **REST**, para lo que las herramientas no exponen: adjuntos, ramas, repos, responsables, usuarios,
 carpetas, `/contract` y `/guia`. Y como plan B si las herramientas **no** aparecen — el caso típico
-es que falte `TRELLOUTLOOK_PAT` en el `settings.json` de tu humano y el servidor no haya conectado.
-Si te pasa, **decíselo** en vez de arrastrarte por curl toda la sesión.
+es que el plugin se haya instalado sin token y el servidor no haya conectado. Si te pasa, **decíselo
+a tu humano** en vez de arrastrarte por curl toda la sesión: lo arregla en un minuto.
+
+Para el camino REST hace falta además que el token esté en tu **shell** como `$TRELLOUTLOOK_PAT`
+(ver punto 2 de abajo). Si las herramientas andan pero los curls te dan 401, es eso y no un problema
+de permisos.
 
 El criterio no cambia entre los dos caminos: quién mueve qué, dónde va el avance, qué hacés cuando
 te trabás. Eso es el resto de este documento y vale igual. Lo que sí cambia es que **por REST el
@@ -44,7 +48,7 @@ son solo convención: están hechas cumplir en el router.
 ## Antes de la primera llamada
 
 1. `export PYTHONIOENCODING=utf-8 MSYS_NO_PATHCONV=1` **siempre, primero**. Sin la primera, imprimir el board revienta con `UnicodeEncodeError` (cp932) al llegar a la `Ó` de REVISIÓN. Sin la segunda, en Git Bash `/auth/me` se convierte en `C:/Program Files/Git/auth/me` y urllib tira `InvalidURL`: **entrecomillar el path no evita nada**, solo la variable lo frena. Y ojo, las llamadas con `?` (`/board?board_id=…`) sobreviven igual: por eso el error parece intermitente y terminás descartando el shell como causa justo cuando te falla `/auth/me` o el detalle de una tarjeta. (Efecto lateral: con `MSYS_NO_PATHCONV=1`, `curl -o /dev/null` deja de andar — usá `-o nul`.) **En PowerShell** eso es `$env:PYTHONIOENCODING="utf-8"` — `export` no existe y te tira "The term 'export' is not recognized"; `MSYS_NO_PATHCONV` no hace falta, ahí no hay conversión de rutas.
-2. El PAT sale de `$TRELLOUTLOOK_PAT` (settings.json de tu humano). **Nunca** lo escribas en un archivo del repo, en un commit ni en un comentario de tarjeta: los comentarios los ven los clientes del tablero.
+2. **El token de las herramientas y el de tus curls no son el mismo canal.** El plugin guarda el token en el almacenamiento seguro del sistema y se lo pasa al servidor de herramientas por vos; eso **no** te deja nada en el ambiente. Para llamar la API a mano necesitás `$TRELLOUTLOOK_PAT` exportado en tu shell, y si no está, **pedíselo a tu humano** en vez de buscarlo por ahí. **Nunca** lo escribas en un archivo del repo, en un commit ni en un comentario de tarjeta: los comentarios los ven los clientes del tablero.
 3. Base: `https://lectorcorreotrello2-backend.fly.dev/api/v1`, header `Authorization: Bearer <PAT>`. (El `X-Panel-Token` del token de agente legacy todavía responde 200 en instalaciones viejas, pero está retirado: no lo uses, el día que se caiga toda la skill da 401 y la glosa de errores te manda a perseguir un PAT que está perfecto.)
 4. **Quién sos y de qué lado estás.** Con herramientas, cualquier respuesta trae `yo` y ahí viene resuelto. Por REST, `GET /auth/me` confirma `agent_token: true` y con qué identidad firmás. El lado (`back` o `front`) lo resuelve el servidor por el nombre de tu token o por el mail de tu humano: **no lo adivines ni lo deduzcas del proyecto**. Si el servidor no lo pudo resolver te lo dice con esas palabras, y ahí lo arregla un humano — no elijas uno por tu cuenta.
 
