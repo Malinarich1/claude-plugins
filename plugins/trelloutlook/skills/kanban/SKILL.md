@@ -1,11 +1,13 @@
 ---
 name: trelloutlook
-description: Kanban TrellOutlook (SIM, Vitrify, Cubicaciones, TrellOutlook), por sus herramientas MCP o por su API REST. Usala cuando te pidan trabajar o tomar una tarea o tarjeta del tablero, panel o kanban, moverla a EN PROCESO o PRUEBA INTERNA, comentar el avance, anotar un hallazgo, ver qué hay pendiente o abierto, o dejar y correr dev-prompts del front o del back.
+description: Kanban TrellOutlook, por sus herramientas MCP o por su API REST. Usala cuando te pidan trabajar o tomar una tarea o tarjeta del tablero, panel o kanban, moverla a EN PROCESO o PRUEBA INTERNA, comentar el avance, anotar un hallazgo, ver qué hay pendiente o abierto, o dejar y correr dev-prompts para la otra parte del equipo.
 ---
 
 # TrellOutlook — runbook del agente
 
-Sos el agente de un humano (Nicolás: back / Vicente: front). Todo lo que crees, muevas o comentes queda **atribuido a él**, con su nombre y su cara: escribí como si él lo fuera a leer, porque lo va a leer. No arrancás nada por tu cuenta: **la tarea la elige el humano**.
+Sos el agente de una persona del equipo. Todo lo que crees, muevas o comentes queda **atribuido a ella**, con su nombre y su cara: escribí como si lo fuera a leer, porque lo va a leer. No arrancás nada por tu cuenta: **la tarea la elige tu humano**.
+
+Nada de este documento tiene nombres de proyecto ni de persona: los tableros, las columnas, la gente y tu propia identidad se **descubren** en las primeras llamadas. Si alguna vez tenés que escribir un id a mano, es que te salteaste un paso.
 
 ## Con qué trabajás
 
@@ -22,16 +24,16 @@ Tres cosas que conviene saber antes de usarlas:
   `crear_tarea` con `pedido` crea la tarjeta y su prompt de forma atómica (quedan las dos o ninguna).
   `atender_prompt` reserva, responde y archiva. No las combines con REST para el mismo paso: te
   quedan dos comentarios y un evento duplicado.
-- **Son mucho más baratas.** `buscar_tareas` resuelve en ~400 tokens lo que por REST cuesta bajar un
-  tablero de 110k. Si tenés las herramientas, la "Regla dura de contexto" de más abajo casi no te
-  aplica.
+- **Son mucho más baratas.** `buscar_tareas` resuelve en unos cientos de tokens lo que por REST
+  cuesta bajarte un tablero entero. Si tenés las herramientas, la "Regla dura de contexto" de más
+  abajo casi no te aplica.
 - **No pueden hacer lo que no debés hacer.** No hay parámetro de columna en `mover_tarea`, no hay
   borrado, no hay forma de escribir la descripción de un humano. Si buscás la herramienta para algo
   y no existe, la respuesta suele ser que eso no es tuyo.
 
 **REST**, para lo que las herramientas no exponen: adjuntos, ramas, repos, responsables, usuarios,
 carpetas, `/contract` y `/guia`. Y como plan B si las herramientas **no** aparecen — el caso típico
-es que falte `TRELLOUTLOOK_PAT` en el `settings.json` del humano y el servidor no haya conectado.
+es que falte `TRELLOUTLOOK_PAT` en el `settings.json` de tu humano y el servidor no haya conectado.
 Si te pasa, **decíselo** en vez de arrastrarte por curl toda la sesión.
 
 El criterio no cambia entre los dos caminos: quién mueve qué, dónde va el avance, qué hacés cuando
@@ -42,9 +44,9 @@ son solo convención: están hechas cumplir en el router.
 ## Antes de la primera llamada
 
 1. `export PYTHONIOENCODING=utf-8 MSYS_NO_PATHCONV=1` **siempre, primero**. Sin la primera, imprimir el board revienta con `UnicodeEncodeError` (cp932) al llegar a la `Ó` de REVISIÓN. Sin la segunda, en Git Bash `/auth/me` se convierte en `C:/Program Files/Git/auth/me` y urllib tira `InvalidURL`: **entrecomillar el path no evita nada**, solo la variable lo frena. Y ojo, las llamadas con `?` (`/board?board_id=…`) sobreviven igual: por eso el error parece intermitente y terminás descartando el shell como causa justo cuando te falla `/auth/me` o el detalle de una tarjeta. (Efecto lateral: con `MSYS_NO_PATHCONV=1`, `curl -o /dev/null` deja de andar — usá `-o nul`.) **En PowerShell** eso es `$env:PYTHONIOENCODING="utf-8"` — `export` no existe y te tira "The term 'export' is not recognized"; `MSYS_NO_PATHCONV` no hace falta, ahí no hay conversión de rutas.
-2. El PAT sale de `$TRELLOUTLOOK_PAT` (settings.json del humano). **Nunca** lo escribas en un archivo del repo, en un commit ni en un comentario de tarjeta: los comentarios los ven los clientes del tablero.
-3. Base: `https://lectorcorreotrello2-backend.fly.dev/api/v1`, header `Authorization: Bearer <PAT>`. (El `X-Panel-Token` del token de agente legacy todavía responde 200, pero está retirado: no lo uses, el día que se caiga toda la skill da 401 y la glosa de errores te manda a perseguir un PAT que está perfecto.)
-4. `GET /auth/me` → confirma `agent_token: true` y con qué identidad estás firmando. El `name` te dice **de qué lado estás**: Nicolás = `back`, Vicente = `front` (los valores son literales, el backend rechaza cualquier otro con 400). En la bandeja el lado se lee en dos direcciones: cuando **vos dejás** un prompt, `metadata.prompt_para` es el **otro** lado; cuando **buscás tu turno**, filtrás `metadata.prompt_para` = **tu** lado.
+2. El PAT sale de `$TRELLOUTLOOK_PAT` (settings.json de tu humano). **Nunca** lo escribas en un archivo del repo, en un commit ni en un comentario de tarjeta: los comentarios los ven los clientes del tablero.
+3. Base: `https://lectorcorreotrello2-backend.fly.dev/api/v1`, header `Authorization: Bearer <PAT>`. (El `X-Panel-Token` del token de agente legacy todavía responde 200 en instalaciones viejas, pero está retirado: no lo uses, el día que se caiga toda la skill da 401 y la glosa de errores te manda a perseguir un PAT que está perfecto.)
+4. **Quién sos y de qué lado estás.** Con herramientas, cualquier respuesta trae `yo` y ahí viene resuelto. Por REST, `GET /auth/me` confirma `agent_token: true` y con qué identidad firmás. El lado (`back` o `front`) lo resuelve el servidor por el nombre de tu token o por el mail de tu humano: **no lo adivines ni lo deduzcas del proyecto**. Si el servidor no lo pudo resolver te lo dice con esas palabras, y ahí lo arregla un humano — no elijas uno por tu cuenta.
 
 `curl -d '{"body":"..."}'` inline **destruye lo no-ASCII en silencio**: verificado sobre el cable, `revisión ñ ✅` sale como `revision n ?`. No falla y no avisa, y el comentario queda firmado por tu humano y escrito como por un analfabeto. Los bodies con texto van en un **archivo .json en UTF-8** (`--data-binary @body.json`) o, mejor, por este helper. Los heredocs largos en bash a veces fallan con `unexpected EOF` (pasa con los de muchas líneas y comillas anidadas): ante la duda, escribí el archivo y ejecutalo.
 
@@ -85,11 +87,11 @@ if __name__ == "__main__":
     print(json.dumps(d, ensure_ascii=False, indent=1)[:4000])
 ```
 
-Los dos recortes de la impresión no son cosméticos. El detalle de una tarjeta ya trabajada pesa ~12 KB: la `description` sola (7 KB en una tarjeta real) y el historial de `events` te empujan `metadata`, `assignees`, `attachments` y `branches` fuera del corte de 4000, o sea leés media descripción y no ves ni los responsables, ni las capturas, ni las ramas — justo lo que "Trabajá la tarea X" te manda leer. Con el recorte entran `metadata`, `assignees` y `attachments`, y te quedan los últimos 2 eventos, que es lo que necesitás para saber quién la tocó. `branches` es la **última** clave del detalle y en una tarjeta gorda se corta igual: si te importan las ramas, pedí la tarjeta con `OUT=`. Y el `pop` del doc rico **no es hipotético**: hoy más de la mitad de las tarjetas del panel son `description_format: rich` (56 de 159, medido). Por eso, en una tarjeta con contenido humano **no mandes `description` sola en un PATCH**: eso descarta el doc rico y sus imágenes embebidas. Tu avance va en un comentario.
+Los dos recortes de la impresión no son cosméticos. El detalle de una tarjeta ya trabajada puede pesar más de 10 KB: la `description` sola y el historial de `events` te empujan `metadata`, `assignees`, `attachments` y `branches` fuera del corte de 4000, o sea leés media descripción y no ves ni los responsables, ni las capturas, ni las ramas — justo lo que "Trabajá la tarea X" te manda leer. Con el recorte entran `metadata`, `assignees` y `attachments`, y te quedan los últimos 2 eventos, que es lo que necesitás para saber quién la tocó. `branches` es la **última** clave del detalle y en una tarjeta gorda se corta igual: si te importan las ramas, pedí la tarjeta con `OUT=`. Y el `pop` del doc rico **no es hipotético**: buena parte de las tarjetas que escribe un humano desde el panel son `description_format: rich`. Por eso, en una tarjeta con contenido humano **no mandes `description` sola en un PATCH**: eso descarta el doc rico y sus imágenes embebidas. Tu avance va en un comentario.
 
 ### Regla dura de contexto
 
-**Nunca dejes que una respuesta de lista llegue cruda al contexto.** `GET /board?board_id=<TrellOutlook>` pesa 443 KB ≈ **110k tokens**, y `/tasks?board_id=` del mismo tablero, 421 KB. No hay recorte del lado del servidor: `limit`, `fields` y `column_id` **no existen** y `?q=` **no busca** (responde 200, ignora el texto y devuelve todo). El `[:4000]` del helper es lo que te salva ~100k tokens por llamada exploratoria; no lo borres. (`/tasks` sí tiene un tope duro de 500 filas del lado del servidor, pero es tan alto que no te protege de nada: hoy los cuatro tableros juntos dan 159.)
+**Nunca dejes que una respuesta de lista llegue cruda al contexto.** Un tablero con historia se pide con `GET /board?board_id=` y puede pesar cientos de KB — decenas de miles de tokens, o más de cien mil en el peor caso —, y `/tasks?board_id=` de ese mismo tablero, casi lo mismo. No hay recorte del lado del servidor: `limit`, `fields` y `column_id` **no existen** y `?q=` **no busca** (responde 200, ignora el texto y devuelve todo). El `[:4000]` del helper es lo que te salva esos tokens por llamada exploratoria; no lo borres. (`/tasks` sí tiene un tope duro de 500 filas del lado del servidor, pero es tan alto que en la práctica no te protege de nada.)
 
 Cuando necesites la lista entera, bajala a archivo y filtrala en python **abriendo con `encoding="utf-8"`**:
 
@@ -98,22 +100,20 @@ OUT=t.json python tl.py GET "/tasks?board_id=<id>"
 json.load(open("t.json", encoding="utf-8"))     # PYTHONIOENCODING arregla el print, NO el open
 ```
 
-Sin ese `encoding` explícito el `json.load` muere con `UnicodeDecodeError` cp932 y parece que el archivo se bajó corrupto. Los tableros de proyecto son chicos (SIM ~13 KB): el número grande es el del tablero TrellOutlook.
+Sin ese `encoding` explícito el `json.load` muere con `UnicodeDecodeError` cp932 y parece que el archivo se bajó corrupto. El peso depende del tablero: uno recién arrancado es chico y uno con años de historia es el que te come el contexto, así que medí antes de imprimir en vez de suponer.
 
-- `GET /contract` (~13k tokens) es la fuente de verdad de la API, siempre al día (`X-Contract-Sha`): leelo cuando necesites la forma exacta de un request en vez de suponerla. `GET /guia` (~2.3k) es la fuente canónica y versionada del **protocolo de la bandeja** (`X-Guia-Sha`): pedila antes de tocar un dev-prompt, no reconstruyas el protocolo de acá.
+- `GET /contract` es la fuente de verdad de la API, siempre al día (`X-Contract-Sha`): leelo cuando necesites la forma exacta de un request en vez de suponerla. `GET /guia` es la fuente canónica y versionada del **protocolo de la bandeja** (`X-Guia-Sha`): pedila antes de tocar un dev-prompt, no reconstruyas el protocolo de acá.
 - Los dos son **markdown, no JSON**: bajalos a archivo (`OUT=guia.md python tl.py GET "/guia"`) y leé el archivo. `get()` sobre ellos tira `JSONDecodeError`.
 - `GET /version` → `{git_sha, contract_sha, guia_sha}`.
 
 ## Tableros y columnas
 
-SIM `09b80cf9-6ff1-4acb-81a8-c217746763ee` (carpeta SALFACORP) · TrellOutlook `0ffd3d58-f8bc-4bfc-a8be-770836fee216` · Vitrify `eb9e855b-d6f1-461d-991d-1678e77ccc96` · Cubicaciones `5ff265f1-c6e1-48cc-a35b-a6f98f215745`.
-
-**Las columnas cambian por tablero: descubrilas siempre — y el mapa sale de `GET /boards`, que pesa 6 KB.** Ahí viene cada tablero visible con su `columns_summary` (`{id, name, kind, tasks_count}` de **todas** sus columnas) y sus `repos`. Pedí `GET /board?board_id=` (443 KB) **solo cuando necesites las tareas**, y a archivo.
+**No hardcodees ids ni nombres de tablero: descubrilos siempre.** El mapa sale de `GET /boards`, que es liviano (unos pocos KB): trae cada tablero visible con su `columns_summary` (`{id, name, kind, tasks_count}` de **todas** sus columnas) y sus `repos`. Pedí `GET /board?board_id=` **solo cuando necesites las tareas**, y a archivo.
 
 ```python
 from tl import get              # tl.py en el cwd, con TRELLOUTLOOK_PAT exportado
-BID = "0ffd3d58-…"              # el tablero del proyecto en el que estás trabajando
-b = next(x for x in get("/boards")["boards"] if x["id"] == BID)
+PROYECTO = "…"                  # el nombre que te dijo tu humano
+b = next(x for x in get("/boards")["boards"] if x["name"] == PROYECTO)
 cols = {c["name"]: c["id"] for c in b["columns_summary"]}
 ABIERTO    = next(c["id"] for c in b["columns_summary"] if c["kind"] == "abierto")
 EN_PROCESO = cols["EN PROCESO"]
@@ -121,13 +121,13 @@ PRUEBA     = cols["PRUEBA INTERNA"]
 ```
 
 - ABIERTO se resuelve por `kind == "abierto"` (hay exactamente una por tablero): es el único ancla que no depende del nombre. (En `GET /board` el mismo ancla se llama `is_default_inbox`.)
-- **Para el resto el `kind` no distingue nada**: `en_curso` son dos en SIM/Vitrify/Cubicaciones (`EN PROCESO`, `PRUEBA INTERNA`) y **tres** en TrellOutlook, porque `Pulir` también es `en_curso` y es territorio humano. `revision` son dos en los cuatro. Mirá el **nombre**.
-- **Nunca matchees nombres de columna por substring ni `startswith`**: `REVISIÓN CLIENTE OK` empieza con `REVISI…`. Igualdad exacta. Los nombres varían entre tableros (`REVISIÓN CLIENTE FAIL` en TrellOutlook, `REVISIÓN CLIENTE NO OK` entero en los otros tres). Esta regla es para columnas; para buscar tarjetas por texto, mirá "Trabajá la tarea X".
+- **Para el resto el `kind` no distingue nada**: `en_curso` son al menos dos (`EN PROCESO` y `PRUEBA INTERNA`), y un tablero puede tener columnas propias con ese mismo kind que son territorio humano. `revision` también suele ser más de una. Mirá el **nombre**.
+- **Nunca matchees nombres de columna por substring ni `startswith`**: `REVISIÓN CLIENTE OK` empieza con `REVISI…`. Igualdad exacta. Y los nombres **varían entre tableros**: el mismo estado puede llamarse distinto en dos proyectos, porque un humano puede renombrar una columna. Esta regla es para columnas; para buscar tarjetas por texto, mirá "Trabajá la tarea X".
 - Toda columna que no sea ABIERTO / EN PROCESO / PRUEBA INTERNA es **territorio humano** — con una
   excepción: la de rechazo del cliente (`kind: "rechazado"`), de donde sí podés retomar una tarjeta
   si tu humano te lo pide.
 - **Las columnas no las tocás**: crearlas, renombrarlas, reordenarlas o cambiarles el `kind` es
-  `403`. Son la estructura del tablero, y el techo de arriba se apoya en ellas.
+  `403`. Son la estructura del tablero, y el techo de abajo se apoya en ellas.
 
 ## Quién mueve qué — la regla que no se rompe
 
@@ -137,7 +137,7 @@ PRUEBA     = cols["PRUEBA INTERNA"]
 | EN PROCESO | **vos**, al arrancar. Verla ahí ya avisa que alguien la está haciendo |
 | PRUEBA INTERNA | **vos**, al terminar. **Es tu estado terminal: nunca pasás de acá** |
 | La de rechazo del cliente (`kind: "rechazado"`) | **vos**, y solo si tu humano te lo pide: es la única salida de la zona del cliente que sigue siendo tuya |
-| REVISIÓN, CONSULTAR CLIENTE, OK, FINALIZADO | **solo humanos**, en los dos sentidos: ni las llevás ahí ni las sacás de ahí |
+| REVISIÓN y todo lo que sigue (`revision`, `ok`, `cerrado`) | **solo humanos**, en los dos sentidos: ni las llevás ahí ni las sacás de ahí |
 
 REVISIÓN es la puerta al **cliente final**, no una revisión interna: un humano prueba primero. No hay claim para tarjetas comunes (el claim existe solo para los dev-prompts).
 
@@ -151,7 +151,7 @@ parámetro de columna, y sus tres destinos son ABIERTO, EN PROCESO y PRUEBA INTE
 ## Endpoints
 
 ```
-GET   /boards                  árbol: tableros con columns_summary y repos (6 KB)
+GET   /boards                  árbol: tableros con columns_summary y repos (liviano)
 GET   /board?board_id=<id>     tablero entero; las tareas van en columns[].tasks[] (GRANDE: a archivo)
 GET   /tasks?board_id=<a>,<b>  tareas planas de uno o varios tableros (coma), con board_name,
                                column_name, column_kind, description y metadata
@@ -165,10 +165,26 @@ PUT   /tasks/{id}/assignees    {"user_ids":[...]} REEMPLAZA la lista entera
 GET   /users?board_id=<id>     únicos ids válidos como responsable de ese tablero
 ```
 
-- `metadata` hace **shallow-merge** en PATCH: mandar `{"area":"FRONT"}` conserva `prioridad` y el resto. En uso: `prioridad` (`ALTA|MEDIA|NORMAL`), `area` (`BACK|FRONT|BACK-FRONT|SAP`). **Son convención, no enum**: el backend guarda `metadata` tal cual y un valor mal escrito entra con 200 y deja una tarjeta que el panel no sabe pintar. Copialos exactos.
+- `metadata` hace **shallow-merge** en PATCH: mandar `{"area":"FRONT"}` conserva `prioridad` y el resto. En uso: `prioridad` (`ALTA|MEDIA|NORMAL`) y `area` (ver *De qué lado estás* más abajo). **Por REST son convención, no enum**: el backend guarda el `metadata` de una tarjeta común tal cual, y un valor mal escrito entra con 200 y deja una tarjeta que el panel no sabe pintar. Copialos exactos. Las herramientas sí los validan y te devuelven la lista de los válidos en el error.
 - `move` **no cruza tableros**: con una columna de otro tablero responde un **`404` genérico**, no un 400 explicativo. Ante un 404 en `move`, mirá primero de qué tablero es la columna antes de sospechar de permisos.
 - `POST /tasks` con `column_id` tiene **el mismo techo que el move**: con una columna de la zona del cliente responde `403` y no crea nada. Sin `column_id` nace en el ABIERTO del tablero, que es lo que querés casi siempre.
 - La lista plana es liviana: `assignees` y `comments_count` vienen vacíos, y los `attachments` (capturas que dejó el humano) solo aparecen en el detalle. Al revés, el detalle trae `column_id` pero **no** `column_name`. `?assignee=<uuid>` sí filtra.
+
+## De qué lado estás
+
+El flujo reparte trabajo entre **dos partes**, y hoy el backend las nombra con dos literales fijos:
+`back` y `front`. No son "una persona" ni "un proyecto": son los dos lados entre los que se pasan
+pedidos, y el servidor **rechaza cualquier otro valor con 400**. Tres consecuencias prácticas:
+
+- **Tu lado no lo elegís vos**: lo resuelve el servidor (ver *Antes de la primera llamada*, punto 4).
+- Cuando **vos dejás** un pedido, `prompt_para` es el **otro** lado. Cuando **buscás tu turno**,
+  filtrás por el **tuyo**. Con `buscar_tareas bandeja="mi_turno"` eso ya viene resuelto.
+- `metadata.area` es un campo **distinto** y no es lo mismo: etiqueta a qué parte le toca una
+  **tarjeta** (no un pedido). Las herramientas aceptan hoy `BACK`, `FRONT` y `BACK-FRONT`; si
+  mandás otra cosa, el error te lista las válidas.
+
+Si el equipo suma una tercera parte (administración, datos, diseño), esto **no** alcanza: hace falta
+tocar el backend. Mientras tanto, no inventes valores nuevos ni los escondas en el texto libre.
 
 ---
 
@@ -187,9 +203,9 @@ Si te la nombran por título y no por id: `OUT=t.json python tl.py GET "/tasks?b
 - **En ABIERTO** → `POST /tasks/{id}/move` a `EN_PROCESO` antes de tocar código.
 - **Ya en EN PROCESO** → no la muevas: el move a la misma columna sale 200, la sube al tope y les avisa a los humanos un arranque falso. Alguien la está haciendo: leé el último comentario y `events`, y confirmá con tu humano que la seguís vos.
 - **En la columna de rechazo del cliente** (`kind: "rechazado"`) → esa sí la podés retomar a EN PROCESO, y **solo** si tu humano te lo pide: el cliente la devolvió y el trabajo vuelve al equipo.
-- **En REVISIÓN, CONSULTAR CLIENTE, OK o FINALIZADO** → no la toques. Por REST el servidor te contesta **403** (se valida el origen, no solo el destino) y la herramienta directamente no tiene por dónde. La saca un humano desde el panel: pedíselo y decile por qué.
+- **En REVISIÓN o más allá** → no la toques. Por REST el servidor te contesta **403** (se valida el origen, no solo el destino) y la herramienta directamente no tiene por dónde. La saca un humano desde el panel: pedíselo y decile por qué.
 
-No toques `assignees` al arrancar: el move a EN PROCESO ya es la señal, y el PUT reemplaza la lista entera (podés borrar a un responsable real que no es ninguno de tus dos humanos).
+No toques `assignees` al arrancar: el move a EN PROCESO ya es la señal, y el PUT reemplaza la lista entera (podés borrar a un responsable real que no es tu humano).
 
 ## "Terminé"
 
@@ -199,7 +215,7 @@ Comentario con qué hiciste, qué archivos tocaste, **cómo verificarlo**, **dó
 
 Si el proyecto tiene repos cargados (vienen en `repos` de `GET /boards`), registrá la rama: `POST /tasks/{id}/branches {"repo_id":"…","branch":"…"}`, con un repo de **ese** tablero. Una rama por repo y tarea: la segunda da 409 y se edita con `PATCH /tasks/{id}/branches/{branchID}`. Si el proyecto no tiene repos, la rama va en el comentario.
 
-Antes de mover, mirá `metadata.area`: si es `BACK-FRONT` y solo hiciste tu mitad, PRUEBA INTERNA es mentira. Comentás lo tuyo y hacés la devolución completa: `move` a **ABIERTO** (la tarjeta está en EN PROCESO, la moviste vos al arrancar — no se queda sola) + `PATCH {"metadata":{"area":"FRONT"}}` + dev-prompt con `metadata.prompt_tarea_id` = el id de esa tarjeta; es la receta de "Me trabé: depende del front / del back". PRUEBA INTERNA es cuando la tarjeta **entera** está lista para que la prueben.
+Antes de mover, mirá `metadata.area`: si dice que la tarjeta es de las dos partes y solo hiciste tu mitad, PRUEBA INTERNA es mentira. Comentás lo tuyo y hacés la devolución completa: `move` a **ABIERTO** (la tarjeta está en EN PROCESO, la moviste vos al arrancar — no se queda sola) + `PATCH {"metadata":{"area":"…"}}` con el área que queda trabajando + dev-prompt con `metadata.prompt_tarea_id` = el id de esa tarjeta; es la receta de "Me trabé: depende de la otra parte". PRUEBA INTERNA es cuando la tarjeta **entera** está lista para que la prueben.
 
 El avance va **en un comentario**, no reescribiendo la descripción: el pedido original del humano queda intacto. `description` **no** hace shallow-merge, un PATCH la reemplaza entera. Solo la tocás si está **vacía**: `PATCH {"description":"..."}` en texto plano (no armes `description_rich`). Si está **a medias pero con contenido del humano, no la patchees**: mandar solo `description` descarta el doc rico y libera sus imágenes embebidas, o sea le borrás el formato y las capturas. Tu complemento va en un comentario.
 
@@ -207,13 +223,13 @@ El avance va **en un comentario**, no reescribiendo la descripción: el pedido o
 
 Comentás exactamente qué te frena y qué necesitás para seguir. **Dejás la tarjeta en EN PROCESO** (sigue siendo tuya).
 
-## "Me trabé: depende del front / del back"
+## "Me trabé: depende de la otra parte"
 
 **Con herramientas:** `mover_tarea accion="devolver"` con `nota=` y `pedido=` hace los cuatro pasos
 de una vez y sin que puedas olvidarte del enlace. Si es una vuelta nueva de un hilo que ya existe,
 pasá `responde_a=<id del prompt anterior>`: encadena y cierra el eslabón viejo.
 
-Por REST son cuatro pasos y hay que hacerlos todos: comentás qué falta → `move` a **ABIERTO** con las instrucciones → `PATCH {"metadata":{"area":"FRONT"}}` → dev-prompt para el agente de esa parte **con `metadata.prompt_tarea_id` = el id de esa misma tarjeta**. Si lo omitís, el backend crea una tarjeta de trabajo nueva: te quedan dos para lo mismo y el hilo partido.
+Por REST son cuatro pasos y hay que hacerlos todos: comentás qué falta → `move` a **ABIERTO** con las instrucciones → `PATCH {"metadata":{"area":"…"}}` → dev-prompt para el agente de esa parte **con `metadata.prompt_tarea_id` = el id de esa misma tarjeta**. Si lo omitís, el backend crea una tarjeta de trabajo nueva: te quedan dos para lo mismo y el hilo partido.
 
 ## "Encontré un bug o deuda al pasar"
 
@@ -227,11 +243,11 @@ No lo arregles de prepo. Tarjeta nueva en ABIERTO del **mismo proyecto** (qué p
 **Con herramientas:** `buscar_tareas` sin filtros ya te devuelve el trabajo activo de todos los
 proyectos, compacto y sin los dev-prompts mezclados. Es la respuesta entera a esta pregunta.
 
-Por REST: `GET /tasks?board_id=<a>,<b>` (varios ids separados por coma en **una sola llamada**; cada tarea trae `board_name`) → filtrás `column_name` = ABIERTO **y tirás las que tengan `metadata.tipo == "dev-prompt"`**. El kanban las oculta a propósito (no entran en `columns_summary`): son coordinación entre agentes, no trabajo pendiente. Sin ese descarte le reportás como pendiente la coordinación entre agentes —hoy son la mayoría del ABIERTO de TrellOutlook— y encima algún prompt repite el título de su tarjeta enlazada: tu resumen no coincide con lo que él ve en pantalla. Resumís y podés sugerir por dónde empezar; **no arranques**.
+Por REST: `GET /tasks?board_id=<a>,<b>` (varios ids separados por coma en **una sola llamada**; cada tarea trae `board_name`) → filtrás `column_name` = ABIERTO **y tirás las que tengan `metadata.tipo == "dev-prompt"`**. El kanban las oculta a propósito (no entran en `columns_summary`): son coordinación entre agentes, no trabajo pendiente. Sin ese descarte le reportás como pendiente la coordinación entre agentes —que en un tablero activo puede ser la mayoría del ABIERTO— y encima algún prompt repite el título de su tarjeta enlazada: tu resumen no coincide con lo que él ve en pantalla. Resumís y podés sugerir por dónde empezar; **no arranques**.
 
-## Bandeja de dev-prompts (front ↔ back)
+## Bandeja de dev-prompts (entre las dos partes)
 
-Un dev-prompt es una **tarea** con `metadata.tipo: "dev-prompt"`. **Hoy todos viven en el tablero principal (TrellOutlook)** y el proyecto del que hablan va en `metadata.prompt_proyecto`, que es lo que dice `/guia` y lo que hace el panel: los 53 que existen están ahí. Está decidido que en el futuro cada uno viva en el tablero de su proyecto, pero eso espera a que exista mover tareas entre tableros y a que `/guia` lo diga: **hasta entonces, creálos en el principal**, o el otro agente no los va a encontrar.
+Un dev-prompt es una **tarea** con `metadata.tipo: "dev-prompt"`. **Viven todos en el tablero principal** y el proyecto del que hablan va en `metadata.prompt_proyecto`, que es lo que dice `/guia` y lo que hace el panel. Está decidido que en el futuro cada uno viva en el tablero de su proyecto, pero eso espera a que exista mover tareas entre tableros y a que `/guia` lo diga: **hasta entonces, creálos en el principal**, o el otro agente no los va a encontrar.
 
 **Todo lo de la bandeja va adentro de `metadata`** (que hace shallow-merge): `prompt_para`, `prompt_estado`, `prompt_autor`, `prompt_proyecto`, `prompt_tarea_id`, `prompt_respuesta`, `prompt_respuesta_tipo`, `prompt_prioridad`, `prompt_padre`. Ninguno existe en la raíz de la tarea. El PATCH con los campos sueltos responde **200 sin cambiar nada** (el handler solo lee `title`, `description`, `metadata`), así que creés que respondiste y el prompt sigue pendiente con el claim tomado. Y el POST **solo te frena con 400 si `metadata` trae `tipo: "dev-prompt"`**: si mandás todo suelto y sin `metadata`, responde **201** y te deja una tarjeta común que nadie va a leer como prompt.
 
@@ -244,8 +260,8 @@ igual para todo lo que la herramienta no cubre.
 
 La bandeja **también la dispara el humano**: podés listar los prompts de tu lado y avisar qué hay, pero correrlos te los pide él. El protocolo completo —campos, enums, estados, hilos— está en `GET /guia`.
 
-- **Ver tu turno:** `OUT=p.json python tl.py GET "/tasks?board_id=<id1>,<id2>,<id3>"` (una sola llamada, con `board_name`) y sobre los `metadata.tipo=="dev-prompt"` filtrás dos cosas: **(a)** `metadata.prompt_estado=="pendiente"` con `metadata.prompt_para` = **tu** lado, que son los que te piden; **(b)** los que **pediste vos** (`prompt_para` = el otro lado) que volvieron `"corrido"` con `metadata.prompt_respuesta_tipo == "requiere"`: leés `prompt_respuesta`, hacés lo que pida y cerrás con `PATCH {"metadata":{"prompt_estado":"cerrado"}}`. Los `"cierra"` se cierran solos, esos no son tu turno. Pedir los cuatro tableros de una es una precaución barata, no una corrección: como hoy los prompts viven todos en el principal, la receta de `/guia` (que consulta solo ese) devuelve lo mismo. El día que se repartan por proyecto, esta receta sigue andando sin tocarla.
-- **Dejar uno:** `POST /tasks` con **`board_id` del tablero principal** (ahí viven todos hoy) y `metadata` = `{"tipo":"dev-prompt","prompt_para":"front","prompt_estado":"pendiente","prompt_proyecto":"…"}`, más una descripción con la forma exacta de lo que necesitás (endpoint, campos, ejemplo) y qué ya está hecho de tu lado. `prompt_proyecto` **etiqueta, no ubica**: el ejemplo de `/guia` omite `board_id` y sin él el prompt y su tarjeta caen en el tablero principal. Sin `column_id` nace en el ABIERTO de ese tablero.
+- **Ver tu turno:** `OUT=p.json python tl.py GET "/tasks?board_id=<ids separados por coma>"` (una sola llamada, con `board_name`) y sobre los `metadata.tipo=="dev-prompt"` filtrás dos cosas: **(a)** `metadata.prompt_estado=="pendiente"` con `metadata.prompt_para` = **tu** lado, que son los que te piden; **(b)** los que **pediste vos** (`prompt_para` = el otro lado) que volvieron `"corrido"` con `metadata.prompt_respuesta_tipo == "requiere"`: leés `prompt_respuesta`, hacés lo que pida y cerrás con `PATCH {"metadata":{"prompt_estado":"cerrado"}}`. Los `"cierra"` se cierran solos, esos no son tu turno. Pedir todos los tableros de una es una precaución barata: hoy los prompts viven en el principal, así que da lo mismo, y el día que se repartan por proyecto la receta sigue andando sin tocarla.
+- **Dejar uno:** `POST /tasks` con **`board_id` del tablero principal** (ahí viven todos hoy) y `metadata` = `{"tipo":"dev-prompt","prompt_para":"<el otro lado>","prompt_estado":"pendiente","prompt_proyecto":"…"}`, más una descripción con la forma exacta de lo que necesitás (endpoint, campos, ejemplo) y qué ya está hecho de tu lado. `prompt_proyecto` **etiqueta, no ubica**: el ejemplo de `/guia` omite `board_id` y sin él el prompt y su tarjeta caen en el tablero principal. Sin `column_id` nace en el ABIERTO de ese tablero.
 - **`metadata.prompt_tarea_id`:** si el prompt sale de una tarjeta que **ya existe** (el caso de arriba: la que devolviste a ABIERTO), mandalo con el id de esa tarjeta. Omitirlo dispara el autocreado del backend, que es solo para pedidos nuevos que todavía no tienen tarjeta — y en ese caso **no la crees vos aparte**, la crea el backend.
 - **Hilo de una tarjeta:** `GET /tasks/{id}/prompts` va con el id de la **tarjeta de trabajo**, no el del prompt. Con el del prompt devuelve `[]` y 200, y concluís mal que no hay hilo.
 - **Tomar:** `POST /tasks/{id}/claim` (acepta `{"agente":"..."}`, lease 45 min). `409` = ya lo tiene otro. `404` = esa tarea no es un dev-prompt. `DELETE .../claim` lo suelta.
@@ -262,7 +278,7 @@ Siempre explicás el porqué en el comentario.
 
 ## Errores
 
-- `400` body inválido o valor fuera de enum — el mensaje dice qué arreglar, leelo. Ojo: los únicos enums que el backend valida son los `prompt_*` de la bandeja; `metadata` de una tarjeta común se guarda tal cual. Esos `prompt_*` son **insensibles a mayúsculas y espacios** (`" BACK "` entra y queda guardado `back`), pero un valor que no esté en el enum sigue siendo 400.
+- `400` body inválido o valor fuera de enum — el mensaje dice qué arreglar, leelo. Ojo: por REST los únicos enums que el backend valida son los `prompt_*` de la bandeja; el `metadata` de una tarjeta común se guarda tal cual. Esos `prompt_*` son **insensibles a mayúsculas y espacios** (`" BACK "` entra y queda guardado `back`), pero un valor que no esté en el enum sigue siendo 400.
 - `401` falta o no sirve el token — **excepto `/auth/tokens`, que responde 401 aunque tu PAT esté perfecto**: acuñar o listar tokens exige la sesión del humano en el panel. El PAT tampoco sirve para el WebSocket (401 por diseño): todo por REST, y para ver cambios volvés a pedir.
 - `403` **algo que un token de agente no hace**. No es un permiso que se pueda pedir: son operaciones
   que exigen un humano en sesión, y el mensaje siempre dice cuál es y qué hacer. Cuatro familias:
