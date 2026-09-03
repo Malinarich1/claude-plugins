@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "trelloutlook",
+  "displayName": "TrellOutlook",
+  "description": "Trabajar el kanban TrellOutlook por su API REST: leer el tablero, tomar y mover tarjetas, comentar el avance y dejar dev-prompts.",
+  "author": {
+    "name": "Nicolas Malinarich"
+  },
+  "homepage": "https://github.com/Malinarich1/claude-plugins/tree/main/plugins/trelloutlook",
+  "repository": "https://github.com/Malinarich1/claude-plugins",
+  "keywords": [
+    "trelloutlook",
+    "kanban",
+    "tablero",
+    "dev-prompts"
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "malinarich-plugins",
+  "description": "Plugins internos del equipo: TrellOutlook y lo que venga despues.",
+  "owner": {
+    "name": "Nicolas Malinarich",
+    "url": "https://github.com/Malinarich1"
+  },
+  "plugins": [
+    {
+      "name": "trelloutlook",
+      "source": "./plugins/trelloutlook",
+      "displayName": "TrellOutlook",
+      "description": "Trabajar el kanban TrellOutlook por su API REST: leer el tablero, tomar y mover tarjetas, comentar el avance y dejar dev-prompts.",
+      "category": "productivity",
+      "keywords": [
+        "trelloutlook",
+        "kanban",
+        "tablero",
+        "tarjetas",
+        "dev-prompts"
+      ]
+    }
+  ]
+}
