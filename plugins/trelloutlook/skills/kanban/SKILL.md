@@ -1,11 +1,43 @@
 ---
 name: trelloutlook
-description: Kanban TrellOutlook (SIM, Vitrify, Cubicaciones, TrellOutlook) por su API REST. Usala cuando te pidan trabajar o tomar una tarea o tarjeta del tablero, panel o kanban, moverla a EN PROCESO o PRUEBA INTERNA, comentar el avance, anotar un hallazgo, ver qué hay pendiente o abierto, o dejar y correr dev-prompts del front o del back.
+description: Kanban TrellOutlook (SIM, Vitrify, Cubicaciones, TrellOutlook), por sus herramientas MCP o por su API REST. Usala cuando te pidan trabajar o tomar una tarea o tarjeta del tablero, panel o kanban, moverla a EN PROCESO o PRUEBA INTERNA, comentar el avance, anotar un hallazgo, ver qué hay pendiente o abierto, o dejar y correr dev-prompts del front o del back.
 ---
 
 # TrellOutlook — runbook del agente
 
 Sos el agente de un humano (Nicolás: back / Vicente: front). Todo lo que crees, muevas o comentes queda **atribuido a él**, con su nombre y su cara: escribí como si él lo fuera a leer, porque lo va a leer. No arrancás nada por tu cuenta: **la tarea la elige el humano**.
+
+## Con qué trabajás
+
+Dos caminos, y **no son equivalentes**.
+
+**Las herramientas `trelloutlook`**, si aparecen en esta sesión. Son seis y hacen el flujo, no la
+API: `buscar_tareas`, `ver_tarea`, `mover_tarea`, `comentar_tarea`, `crear_tarea`, `atender_prompt`.
+Sus descripciones ya te llegaron con el catálogo, así que acá no se repiten; lo que este documento
+agrega es **cuál agarrar en cada situación** y el criterio que ninguna herramienta transmite sola.
+Tres cosas que conviene saber antes de usarlas:
+
+- **Hacen el paso completo, no el verbo suelto.** `mover_tarea` mueve *y* deja el comentario en una
+  llamada; con `accion="devolver"` además ajusta el área y crea el dev-prompt para la otra parte.
+  `crear_tarea` con `pedido` crea la tarjeta y su prompt de forma atómica (quedan las dos o ninguna).
+  `atender_prompt` reserva, responde y archiva. No las combines con REST para el mismo paso: te
+  quedan dos comentarios y un evento duplicado.
+- **Son mucho más baratas.** `buscar_tareas` resuelve en ~400 tokens lo que por REST cuesta bajar un
+  tablero de 110k. Si tenés las herramientas, la "Regla dura de contexto" de más abajo casi no te
+  aplica.
+- **No pueden hacer lo que no debés hacer.** No hay parámetro de columna en `mover_tarea`, no hay
+  borrado, no hay forma de escribir la descripción de un humano. Si buscás la herramienta para algo
+  y no existe, la respuesta suele ser que eso no es tuyo.
+
+**REST**, para lo que las herramientas no exponen: adjuntos, ramas, repos, responsables, usuarios,
+carpetas, `/contract` y `/guia`. Y como plan B si las herramientas **no** aparecen — el caso típico
+es que falte `TRELLOUTLOOK_PAT` en el `settings.json` del humano y el servidor no haya conectado.
+Si te pasa, **decíselo** en vez de arrastrarte por curl toda la sesión.
+
+El criterio no cambia entre los dos caminos: quién mueve qué, dónde va el avance, qué hacés cuando
+te trabás. Eso es el resto de este documento y vale igual. Lo que sí cambia es que **por REST el
+servidor te va a frenar con 403** en varias cosas (ver *Errores*), porque las reglas del flujo no
+son solo convención: están hechas cumplir en el router.
 
 ## Antes de la primera llamada
 
@@ -91,7 +123,11 @@ PRUEBA     = cols["PRUEBA INTERNA"]
 - ABIERTO se resuelve por `kind == "abierto"` (hay exactamente una por tablero): es el único ancla que no depende del nombre. (En `GET /board` el mismo ancla se llama `is_default_inbox`.)
 - **Para el resto el `kind` no distingue nada**: `en_curso` son dos en SIM/Vitrify/Cubicaciones (`EN PROCESO`, `PRUEBA INTERNA`) y **tres** en TrellOutlook, porque `Pulir` también es `en_curso` y es territorio humano. `revision` son dos en los cuatro. Mirá el **nombre**.
 - **Nunca matchees nombres de columna por substring ni `startswith`**: `REVISIÓN CLIENTE OK` empieza con `REVISI…`. Igualdad exacta. Los nombres varían entre tableros (`REVISIÓN CLIENTE FAIL` en TrellOutlook, `REVISIÓN CLIENTE NO OK` entero en los otros tres). Esta regla es para columnas; para buscar tarjetas por texto, mirá "Trabajá la tarea X".
-- Toda columna que no sea ABIERTO / EN PROCESO / PRUEBA INTERNA es **territorio humano**.
+- Toda columna que no sea ABIERTO / EN PROCESO / PRUEBA INTERNA es **territorio humano** — con una
+  excepción: la de rechazo del cliente (`kind: "rechazado"`), de donde sí podés retomar una tarjeta
+  si tu humano te lo pide.
+- **Las columnas no las tocás**: crearlas, renombrarlas, reordenarlas o cambiarles el `kind` es
+  `403`. Son la estructura del tablero, y el techo de arriba se apoya en ellas.
 
 ## Quién mueve qué — la regla que no se rompe
 
@@ -100,9 +136,17 @@ PRUEBA     = cols["PRUEBA INTERNA"]
 | ABIERTO | el humano, o **vos** (hallazgo nuevo / devolución a la otra parte) |
 | EN PROCESO | **vos**, al arrancar. Verla ahí ya avisa que alguien la está haciendo |
 | PRUEBA INTERNA | **vos**, al terminar. **Es tu estado terminal: nunca pasás de acá** |
-| REVISIÓN y todo lo que sigue | **solo humanos** — sacarla de ahí hacia EN PROCESO, solo si tu humano te lo pide |
+| La de rechazo del cliente (`kind: "rechazado"`) | **vos**, y solo si tu humano te lo pide: es la única salida de la zona del cliente que sigue siendo tuya |
+| REVISIÓN, CONSULTAR CLIENTE, OK, FINALIZADO | **solo humanos**, en los dos sentidos: ni las llevás ahí ni las sacás de ahí |
 
 REVISIÓN es la puerta al **cliente final**, no una revisión interna: un humano prueba primero. No hay claim para tarjetas comunes (el claim existe solo para los dev-prompts).
+
+**Esto no es disciplina, es el servidor.** Con tu PAT, por REST, un movimiento que entre o salga de
+esa zona responde **403**, y también crear una tarjeta directamente ahí con `column_id`. Se valida
+el **origen y el destino**: sacar una tarjeta de la zona del cliente le borraría de encima el
+veredicto que dejó, y por eso duele igual que meterla. La excepción es la columna de rechazo, que es
+justamente el camino de vuelta al equipo. Con herramientas ni se plantea: `mover_tarea` no tiene
+parámetro de columna, y sus tres destinos son ABIERTO, EN PROCESO y PRUEBA INTERNA.
 
 ## Endpoints
 
@@ -123,6 +167,7 @@ GET   /users?board_id=<id>     únicos ids válidos como responsable de ese tabl
 
 - `metadata` hace **shallow-merge** en PATCH: mandar `{"area":"FRONT"}` conserva `prioridad` y el resto. En uso: `prioridad` (`ALTA|MEDIA|NORMAL`), `area` (`BACK|FRONT|BACK-FRONT|SAP`). **Son convención, no enum**: el backend guarda `metadata` tal cual y un valor mal escrito entra con 200 y deja una tarjeta que el panel no sabe pintar. Copialos exactos.
 - `move` **no cruza tableros**: con una columna de otro tablero responde un **`404` genérico**, no un 400 explicativo. Ante un 404 en `move`, mirá primero de qué tablero es la columna antes de sospechar de permisos.
+- `POST /tasks` con `column_id` tiene **el mismo techo que el move**: con una columna de la zona del cliente responde `403` y no crea nada. Sin `column_id` nace en el ABIERTO del tablero, que es lo que querés casi siempre.
 - La lista plana es liviana: `assignees` y `comments_count` vienen vacíos, y los `attachments` (capturas que dejó el humano) solo aparecen en el detalle. Al revés, el detalle trae `column_id` pero **no** `column_name`. `?assignee=<uuid>` sí filtra.
 
 ---
@@ -131,17 +176,24 @@ GET   /users?board_id=<id>     únicos ids válidos como responsable de ese tabl
 
 ## "Trabajá la tarea X"
 
+**Con herramientas:** `buscar_tareas` con `texto=` para ubicarla, `ver_tarea` para leerla entera,
+`mover_tarea accion="empezar"` para arrancar (y `retomar=true` si venía rechazada por el cliente).
+Tres llamadas y ninguna te cuesta el tablero. Lo de abajo es la variante por REST.
+
 Si te la nombran por título y no por id: `OUT=t.json python tl.py GET "/tasks?board_id=<id>"` y filtrá por **substring en minúsculas sobre `title` y `description`** — la lista plana trae los dos y muchas veces el tema está solo en la descripción. (La igualdad exacta es la regla de los nombres de columna, no la de buscar tarjetas.)
 
 `GET /tasks/{id}` (leé `description`, `metadata`, `assignees`, `attachments`, `branches`) + `GET /tasks/{id}/comments` para el hilo. Como el detalle no trae el nombre de la columna, resolvé su `column_id` contra el mapa que ya armaste **antes de mover**:
 
 - **En ABIERTO** → `POST /tasks/{id}/move` a `EN_PROCESO` antes de tocar código.
 - **Ya en EN PROCESO** → no la muevas: el move a la misma columna sale 200, la sube al tope y les avisa a los humanos un arranque falso. Alguien la está haciendo: leé el último comentario y `events`, y confirmá con tu humano que la seguís vos.
-- **En REVISIÓN o más allá** → no la arrastres por tu cuenta. Si tu humano te la pide explícitamente (el caso típico: rechazo del cliente), traela a EN PROCESO: lo prohibido es el **destino** REVISIÓN y más allá, no el origen.
+- **En la columna de rechazo del cliente** (`kind: "rechazado"`) → esa sí la podés retomar a EN PROCESO, y **solo** si tu humano te lo pide: el cliente la devolvió y el trabajo vuelve al equipo.
+- **En REVISIÓN, CONSULTAR CLIENTE, OK o FINALIZADO** → no la toques. Por REST el servidor te contesta **403** (se valida el origen, no solo el destino) y la herramienta directamente no tiene por dónde. La saca un humano desde el panel: pedíselo y decile por qué.
 
 No toques `assignees` al arrancar: el move a EN PROCESO ya es la señal, y el PUT reemplaza la lista entera (podés borrar a un responsable real que no es ninguno de tus dos humanos).
 
 ## "Terminé"
+
+**Con herramientas:** `mover_tarea accion="terminar"` con la nota — mueve y comenta en un solo paso.
 
 Comentario con qué hiciste, qué archivos tocaste, **cómo verificarlo**, **dónde quedó** (rama / PR; si deployaste, el `git_sha` de `GET /version`) y qué quedó afuera → `move` a `PRUEBA INTERNA` → **ahí frenás** y le avisás al humano que quedó para que pruebe.
 
@@ -157,21 +209,38 @@ Comentás exactamente qué te frena y qué necesitás para seguir. **Dejás la t
 
 ## "Me trabé: depende del front / del back"
 
-Comentás qué falta → `move` a **ABIERTO** con las instrucciones → `PATCH {"metadata":{"area":"FRONT"}}` → dev-prompt para el agente de esa parte **con `metadata.prompt_tarea_id` = el id de esa misma tarjeta**. Si lo omitís, el backend crea una tarjeta de trabajo nueva: te quedan dos para lo mismo y el hilo partido.
+**Con herramientas:** `mover_tarea accion="devolver"` con `nota=` y `pedido=` hace los cuatro pasos
+de una vez y sin que puedas olvidarte del enlace. Si es una vuelta nueva de un hilo que ya existe,
+pasá `responde_a=<id del prompt anterior>`: encadena y cierra el eslabón viejo.
+
+Por REST son cuatro pasos y hay que hacerlos todos: comentás qué falta → `move` a **ABIERTO** con las instrucciones → `PATCH {"metadata":{"area":"FRONT"}}` → dev-prompt para el agente de esa parte **con `metadata.prompt_tarea_id` = el id de esa misma tarjeta**. Si lo omitís, el backend crea una tarjeta de trabajo nueva: te quedan dos para lo mismo y el hilo partido.
 
 ## "Encontré un bug o deuda al pasar"
+
+**Con herramientas:** `crear_tarea` (nace en ABIERTO del proyecto que elijas; con `pedido=` deja
+además el dev-prompt enlazado). No acepta columna a propósito: una tarjeta nueva nace en ABIERTO.
 
 No lo arregles de prepo. Tarjeta nueva en ABIERTO del **mismo proyecto** (qué pasa, dónde, cómo reproducirlo, que salió trabajando la tarjeta X) y seguís con lo tuyo. **Mandá siempre `board_id`**: sin él la tarea cae en el tablero principal, o sea en el proyecto equivocado.
 
 ## "¿Qué hay pendiente?"
 
-`GET /tasks?board_id=<a>,<b>` (varios ids separados por coma en **una sola llamada**; cada tarea trae `board_name`) → filtrás `column_name` = ABIERTO **y tirás las que tengan `metadata.tipo == "dev-prompt"`**. El kanban las oculta a propósito (no entran en `columns_summary`): son coordinación entre agentes, no trabajo pendiente. Sin ese descarte le reportás como pendiente la coordinación entre agentes —hoy son la mayoría del ABIERTO de TrellOutlook— y encima algún prompt repite el título de su tarjeta enlazada: tu resumen no coincide con lo que él ve en pantalla. Resumís y podés sugerir por dónde empezar; **no arranques**.
+**Con herramientas:** `buscar_tareas` sin filtros ya te devuelve el trabajo activo de todos los
+proyectos, compacto y sin los dev-prompts mezclados. Es la respuesta entera a esta pregunta.
+
+Por REST: `GET /tasks?board_id=<a>,<b>` (varios ids separados por coma en **una sola llamada**; cada tarea trae `board_name`) → filtrás `column_name` = ABIERTO **y tirás las que tengan `metadata.tipo == "dev-prompt"`**. El kanban las oculta a propósito (no entran en `columns_summary`): son coordinación entre agentes, no trabajo pendiente. Sin ese descarte le reportás como pendiente la coordinación entre agentes —hoy son la mayoría del ABIERTO de TrellOutlook— y encima algún prompt repite el título de su tarjeta enlazada: tu resumen no coincide con lo que él ve en pantalla. Resumís y podés sugerir por dónde empezar; **no arranques**.
 
 ## Bandeja de dev-prompts (front ↔ back)
 
 Un dev-prompt es una **tarea** con `metadata.tipo: "dev-prompt"`. **Hoy todos viven en el tablero principal (TrellOutlook)** y el proyecto del que hablan va en `metadata.prompt_proyecto`, que es lo que dice `/guia` y lo que hace el panel: los 53 que existen están ahí. Está decidido que en el futuro cada uno viva en el tablero de su proyecto, pero eso espera a que exista mover tareas entre tableros y a que `/guia` lo diga: **hasta entonces, creálos en el principal**, o el otro agente no los va a encontrar.
 
 **Todo lo de la bandeja va adentro de `metadata`** (que hace shallow-merge): `prompt_para`, `prompt_estado`, `prompt_autor`, `prompt_proyecto`, `prompt_tarea_id`, `prompt_respuesta`, `prompt_respuesta_tipo`, `prompt_prioridad`, `prompt_padre`. Ninguno existe en la raíz de la tarea. El PATCH con los campos sueltos responde **200 sin cambiar nada** (el handler solo lee `title`, `description`, `metadata`), así que creés que respondiste y el prompt sigue pendiente con el claim tomado. Y el POST **solo te frena con 400 si `metadata` trae `tipo: "dev-prompt"`**: si mandás todo suelto y sin `metadata`, responde **201** y te deja una tarjeta común que nadie va a leer como prompt.
+
+**Con herramientas, la bandeja entera son dos:** `buscar_tareas bandeja="mi_turno"` para ver qué te
+toca (`bandeja="todos"` para el panorama) y `atender_prompt` con `accion` `tomar` / `responder` /
+`cerrar` para el ciclo. Esa herramienta tiene adentro la tabla de verdad completa del protocolo
+—quién puede hacer qué según el estado y el lado—, así que si te frena, la razón que te da es la
+correcta y no hace falta que la deduzcas. Lo de abajo es la vía REST, y es la que tenés que conocer
+igual para todo lo que la herramienta no cubre.
 
 La bandeja **también la dispara el humano**: podés listar los prompts de tu lado y avisar qué hay, pero correrlos te los pide él. El protocolo completo —campos, enums, estados, hilos— está en `GET /guia`.
 
@@ -193,16 +262,31 @@ Siempre explicás el porqué en el comentario.
 
 ## Errores
 
-- `400` body inválido o valor fuera de enum — el mensaje dice qué arreglar, leelo. Ojo: los únicos enums que el backend valida son los `prompt_*` de la bandeja; `metadata` de una tarjeta común se guarda tal cual.
+- `400` body inválido o valor fuera de enum — el mensaje dice qué arreglar, leelo. Ojo: los únicos enums que el backend valida son los `prompt_*` de la bandeja; `metadata` de una tarjeta común se guarda tal cual. Esos `prompt_*` son **insensibles a mayúsculas y espacios** (`" BACK "` entra y queda guardado `back`), pero un valor que no esté en el enum sigue siendo 400.
 - `401` falta o no sirve el token — **excepto `/auth/tokens`, que responde 401 aunque tu PAT esté perfecto**: acuñar o listar tokens exige la sesión del humano en el panel. El PAT tampoco sirve para el WebSocket (401 por diseño): todo por REST, y para ver cambios volvés a pedir.
-- `403` rol insuficiente: un PAT no gestiona miembros, visibilidad, dueños ni roles. Eso lo hace el humano en sesión.
+- `403` **algo que un token de agente no hace**. No es un permiso que se pueda pedir: son operaciones
+  que exigen un humano en sesión, y el mensaje siempre dice cuál es y qué hacer. Cuatro familias:
+  - **Gestión**: miembros, visibilidad, dueños, roles, organizaciones, carpetas privadas, tokens.
+  - **Techo de columna**: mover o crear una tarjeta fuera del trabajo interno (ABIERTO / EN PROCESO /
+    PRUEBA INTERNA), en las dos direcciones. Excepción: retomar una rechazada por el cliente.
+  - **Borrar**: tableros, carpetas, columnas, tarjetas, comentarios, adjuntos, repos. (Las ramas de
+    una tarea sí las podés borrar: son tuyas y se rehacen con un POST.)
+  - **Columnas**: crearlas, renombrarlas, reordenarlas o cambiarles el `kind`.
+
+  Si un `403` te frena en algo que tu humano te pidió, no busques la vuelta: pasale el texto del
+  error, que está escrito para que se entienda de una, y lo hace él desde el panel.
 - `404` **"no existe O no lo ves"** — deliberado, no es un bug. Preguntate si ese tablero o tarea es privado para tu humano; y si fue un `move`, si la columna era de otro tablero.
-- `409` conflicto de estado (claim ya tomado, columna con tareas, segunda rama del mismo repo).
+- `409` conflicto de estado (claim ya tomado, segunda rama del mismo repo).
 
 ## Lo que no hacés nunca
 
-- Mover algo **a** REVISIÓN o más allá.
-- Borrar tarjetas, columnas o comentarios ajenos.
+Estas cuatro **no las hacés aunque el servidor te deje**. Son criterio, y por eso están acá:
+
 - Arrancar una tarea que el humano no te pidió.
-- Escribir el PAT en cualquier lado.
 - Pisar la descripción original de un humano.
+- Escribir el PAT en cualquier lado (un archivo del repo, un commit, un comentario de tarjeta).
+- Tocar prompts o tarjetas de un proyecto que no es el tuyo.
+
+Y estas el servidor directamente no te las deja (`403`), así que si te tienta alguna, la salida es
+pedírsela a tu humano y no buscarle la vuelta: cruzar a REVISIÓN o más allá (o sacar algo de ahí),
+borrar cualquier cosa, y tocar las columnas de un tablero.
