@@ -237,6 +237,24 @@ Si el proyecto tiene repos cargados (vienen en `repos` de `GET /boards`), regist
 
 Antes de mover, preguntate si está lista la tarjeta **entera**, y no solo si `metadata.area` te nombra a vos. El área es una etiqueta y se queda vieja: puede decir BACK mientras el «qué hay que hacer» de la descripción pide una pantalla que nadie hizo. **Lo que manda es el alcance escrito en la tarjeta**, y muchas veces esa misma descripción ya dice quién sigue («coordinar con el front», «prompt para=front al cerrar el back»): eso es una instrucción, no un comentario al pasar. Si de ese alcance queda algo para la otra parte, PRUEBA INTERNA es mentira. Comentás lo tuyo y hacés la devolución completa: `move` a **ABIERTO** (la tarjeta está en EN PROCESO, la moviste vos al arrancar — no se queda sola) + `PATCH {"metadata":{"area":"…"}}` con el área que queda trabajando + dev-prompt con `metadata.prompt_tarea_id` = el id de esa tarjeta; es la receta de "Me trabé: depende de la otra parte". PRUEBA INTERNA es cuando la tarjeta **entera** está lista para que la prueben. Dicho al revés, que es como se comete el error: dejar ahí una tarjeta a la que le falta la otra mitad no la deja "casi lista", la manda al cliente a medio hacer, porque el humano prueba lo que ve, le funciona y la empuja a REVISIÓN. Desde ahí no la podés sacar.
 
+**Y ojo con una trampa que arruina la regla de arriba: una tarjeta AUTOCREADA por un dev-prompt
+no describe la función, describe el PEDIDO.** Cuando el backend crea la tarjeta de trabajo de
+un prompt, le copia el texto del prompt. Así que su descripción es *la mitad que la otra parte
+te pidió a vos*, no lo que la tarjeta tiene que entregar — y si buscás ahí «el alcance
+escrito», encontrás una lista de endpoints y concluís que terminaste.
+La pista está igual, y casi siempre en las primeras líneas, disfrazada de contexto: «el
+rediseño está entregado completo **salvo la sección X**», «la UI ya está hecha **y apagada**».
+Eso no es motivación: **es el alcance**. La tarjeta existe para que exista X, y tus endpoints
+son un insumo.
+Cómo se detecta sin pensarlo: la pregunta no es *«¿entregué lo que el prompt pedía?»* sino
+**«¿alguien puede USAR esto ahora?»**. Si la respuesta es que falta la pantalla, falta la
+tarjeta.
+**Responder el prompt y mover la tarjeta son dos decisiones distintas, y se toman por
+separado.** Responder `cierra` dice «tu pedido está entregado» y es cierto. Mover a PRUEBA
+INTERNA dice «esto se puede probar entero», que es otra cosa. Coinciden solo cuando el alcance
+de la tarjeta es exactamente lo que el prompt pedía — y en una tarjeta autocreada casi nunca lo
+es. Cerrá el prompt igual, y a la tarjeta devolvela con la receta de siempre.
+
 El avance va **en un comentario**, no reescribiendo la descripción: el pedido original del humano queda intacto. `description` **no** hace shallow-merge, un PATCH la reemplaza entera. Solo la tocás si está **vacía**: `PATCH {"description":"..."}` en texto plano (no armes `description_rich`). Si está **a medias pero con contenido del humano, no la patchees**: mandar solo `description` descarta el doc rico y libera sus imágenes embebidas, o sea le borrás el formato y las capturas. Tu complemento va en un comentario.
 
 ## "Me trabé: necesito algo del humano"
@@ -295,6 +313,7 @@ La bandeja **también la dispara el humano**: podés listar los prompts de tu la
 
 - **Ver tu turno:** `OUT=p.json python tl.py GET "/tasks?board_id=<ids separados por coma>"` (una sola llamada, con `board_name`) y sobre los `metadata.tipo=="dev-prompt"` filtrás dos cosas: **(a)** `metadata.prompt_estado=="pendiente"` con `metadata.prompt_para` = **tu** lado, que son los que te piden; **(b)** los que **pediste vos** (`prompt_para` = el otro lado) que volvieron `"corrido"` con `metadata.prompt_respuesta_tipo == "requiere"`: leés `prompt_respuesta`, hacés lo que pida y cerrás con `PATCH {"metadata":{"prompt_estado":"cerrado"}}`. Los `"cierra"` se cierran solos, esos no son tu turno. Pedir todos los tableros de una es una precaución barata: hoy los prompts viven en el principal, así que da lo mismo, y el día que se repartan por proyecto la receta sigue andando sin tocarla.
 - **Dejar uno:** `POST /tasks` con **`board_id` del tablero principal** (ahí viven todos hoy) y `metadata` = `{"tipo":"dev-prompt","prompt_para":"<el otro lado>","prompt_estado":"pendiente","prompt_proyecto":"…"}`, más una descripción con la forma exacta de lo que necesitás (endpoint, campos, ejemplo) y qué ya está hecho de tu lado. `prompt_proyecto` **etiqueta, no ubica**: el ejemplo de `/guia` omite `board_id` y sin él el prompt y su tarjeta caen en el tablero principal. Sin `column_id` nace en el ABIERTO de ese tablero.
+- **La tarjeta que el backend autocrea lleva el texto del prompt**, así que describe el PEDIDO y no la función. Cuando te toque terminarla, no leas ahí «el alcance»: leé qué dice que falta (ver *"Terminé"*).
 - **`metadata.prompt_tarea_id`:** si el prompt sale de una tarjeta que **ya existe** (el caso de arriba: la que devolviste a ABIERTO), mandalo con el id de esa tarjeta. Omitirlo dispara el autocreado del backend, que es solo para pedidos nuevos que todavía no tienen tarjeta — y en ese caso **no la crees vos aparte**, la crea el backend.
 - **Hilo de una tarjeta:** `GET /tasks/{id}/prompts` va con el id de la **tarjeta de trabajo**, no el del prompt. Con el del prompt devuelve `[]` y 200, y concluís mal que no hay hilo.
 - **Tomar:** `POST /tasks/{id}/claim` (acepta `{"agente":"..."}`, lease 45 min). `409` = ya lo tiene otro. `404` = esa tarea no es un dev-prompt. `DELETE .../claim` lo suelta.
