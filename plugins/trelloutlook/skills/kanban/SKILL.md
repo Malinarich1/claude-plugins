@@ -233,6 +233,22 @@ No toques `assignees` al arrancar: el move a EN PROCESO ya es la señal, y el PU
 
 Comentario con qué hiciste, qué archivos tocaste, **cómo verificarlo**, **dónde quedó** (rama / PR; si deployaste, el `git_sha` de `GET /version`) y qué quedó afuera → `move` a `PRUEBA INTERNA` → **ahí frenás** y le avisás al humano que quedó para que pruebe.
 
+**El comentario abre con una línea `SE VERIFICA ASÍ:` y una sola frase.** No es formato por el
+formato: PRUEBA INTERNA es la cola de UNA persona y le llegan mezcladas cosas que se prueban en el
+panel, cosas que se leen y cosas que se corren. Sin esa línea, abrir la columna cuesta decidir de
+nuevo, por cada tarjeta, qué hay que hacer con ella — y lo que se decide seis veces se termina
+posponiendo.
+Las tres formas, y decí cuál es:
+- **En el panel:** «abrí X y probá Y». Es la buena, y la que hay que perseguir.
+- **Leyendo:** cuando la tarjeta no tiene pantalla ni la va a tener (mensajes de error, contratos,
+  higiene interna). Entonces la evidencia va **pegada en el comentario** —la respuesta real de
+  producción, no un resumen tuyo— porque leerla ES la revisión.
+- **Con un comando:** uno solo, completo, listo para pegar. Si necesita tres, no está listo para
+  que lo revise otro.
+Y no la saques de su cola para no molestarla: una tarjeta que se archiva sola porque "el humano
+no la puede probar igual" es una que nadie miró nunca. Se queda donde está y te hacés cargo de
+que revisarla sea barato.
+
 Si el proyecto tiene repos cargados (vienen en `repos` de `GET /boards`), registrá la rama: `POST /tasks/{id}/branches {"repo_id":"…","branch":"…"}`, con un repo de **ese** tablero. Una rama por repo y tarea: la segunda da 409 y se edita con `PATCH /tasks/{id}/branches/{branchID}`. Si el proyecto no tiene repos, la rama va en el comentario.
 
 Antes de mover, preguntate si está lista la tarjeta **entera**, y no solo si `metadata.area` te nombra a vos. El área es una etiqueta y se queda vieja: puede decir BACK mientras el «qué hay que hacer» de la descripción pide una pantalla que nadie hizo. **Lo que manda es el alcance escrito en la tarjeta**, y muchas veces esa misma descripción ya dice quién sigue («coordinar con el front», «prompt para=front al cerrar el back»): eso es una instrucción, no un comentario al pasar. Si de ese alcance queda algo para la otra parte, PRUEBA INTERNA es mentira. Comentás lo tuyo y hacés la devolución completa: `move` a **ABIERTO** (la tarjeta está en EN PROCESO, la moviste vos al arrancar — no se queda sola) + `PATCH {"metadata":{"area":"…"}}` con el área que queda trabajando + dev-prompt con `metadata.prompt_tarea_id` = el id de esa tarjeta; es la receta de "Me trabé: depende de la otra parte". PRUEBA INTERNA es cuando la tarjeta **entera** está lista para que la prueben. Dicho al revés, que es como se comete el error: dejar ahí una tarjeta a la que le falta la otra mitad no la deja "casi lista", la manda al cliente a medio hacer, porque el humano prueba lo que ve, le funciona y la empuja a REVISIÓN. Desde ahí no la podés sacar.
