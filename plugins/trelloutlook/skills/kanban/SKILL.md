@@ -192,9 +192,9 @@ GET   /users?board_id=<id>     únicos ids válidos como responsable de ese tabl
 
 ## De qué lado estás
 
-El flujo reparte trabajo entre **dos partes**, y hoy el backend las nombra con dos literales fijos:
-`back` y `front`. No son "una persona" ni "un proyecto": son los dos lados entre los que se pasan
-pedidos, y el servidor **rechaza cualquier otro valor con 400**. Tres consecuencias prácticas:
+El flujo reparte trabajo entre **partes**, que hoy son dos: `back` y `front`. No son "una persona"
+ni "un proyecto": son los lados entre los que se pasan pedidos, y el servidor **rechaza con 400**
+cualquier valor que no sea una de las partes configuradas. Tres consecuencias prácticas:
 
 - **Tu lado no lo elegís vos**: lo resuelve el servidor (ver *Antes de la primera llamada*, punto 4).
 - Cuando **vos dejás** un pedido, `prompt_para` es el **otro** lado. Cuando **buscás tu turno**,
@@ -204,10 +204,18 @@ pedidos, y el servidor **rechaza cualquier otro valor con 400**. Tres consecuenc
   por `-` (`BACK-FRONT`, `FRONT-SAP`); si mandás otra cosa, el error te lista las válidas. El panel
   guarda la multi-selección en la clave `areas` (un array) y deja `area` vacía, pero las herramientas
   leen **las dos**: `ver_tarea` y `buscar_tareas` te muestran el conjunto unido, y filtrar por un área
-  sola (`area=FRONT`) trae toda tarjeta que la tenga, aunque el panel la haya escrito como array.
+  sola (`area=FRONT`) trae toda tarjeta que la tenga, aunque el panel la haya escrito como array. Las
+  áreas válidas salen de la configuración del backend y se pueden consultar en `GET /api/v1/areas`.
 
-Si el equipo suma una tercera parte (administración, datos, diseño), esto **no** alcanza: hace falta
-tocar el backend. Mientras tanto, no inventes valores nuevos ni los escondas en el texto libre.
+**Las partes y las áreas son dos listas distintas**, y conviene no confundirlas: una *parte* recibe
+pedidos (`prompt_para`, en minúscula), un *área* etiqueta a qué departamento le toca una tarjeta
+(`metadata.area`, en mayúscula). Sumar una de cualquiera de las dos es configuración del backend más
+un deploy, no una pantalla ni un cambio de código. O sea que **puede haber más de dos**: no asumas
+que "el otro lado" existe. Cuando devolvés un pedido con más de dos partes en juego, la herramienta
+te va a pedir a **cuál** se lo dejás, y el error te lista las que hay.
+
+Lo que no cambia: no inventes valores nuevos ni los escondas en el texto libre. Si el que necesitás
+no está en la lista, pedile a tu humano que lo agregue a la configuración.
 
 ---
 
