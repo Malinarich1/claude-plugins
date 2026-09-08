@@ -200,8 +200,11 @@ pedidos, y el servidor **rechaza cualquier otro valor con 400**. Tres consecuenc
 - Cuando **vos dejás** un pedido, `prompt_para` es el **otro** lado. Cuando **buscás tu turno**,
   filtrás por el **tuyo**. Con `buscar_tareas bandeja="mi_turno"` eso ya viene resuelto.
 - `metadata.area` es un campo **distinto** y no es lo mismo: etiqueta a qué parte le toca una
-  **tarjeta** (no un pedido). Las herramientas aceptan hoy `BACK`, `FRONT` y `BACK-FRONT`; si
-  mandás otra cosa, el error te lista las válidas.
+  **tarjeta** (no un pedido), y sus valores son `BACK`, `FRONT`, `SAP` o una **combinación** unida
+  por `-` (`BACK-FRONT`, `FRONT-SAP`); si mandás otra cosa, el error te lista las válidas. El panel
+  guarda la multi-selección en la clave `areas` (un array) y deja `area` vacía, pero las herramientas
+  leen **las dos**: `ver_tarea` y `buscar_tareas` te muestran el conjunto unido, y filtrar por un área
+  sola (`area=FRONT`) trae toda tarjeta que la tenga, aunque el panel la haya escrito como array.
 
 Si el equipo suma una tercera parte (administración, datos, diseño), esto **no** alcanza: hace falta
 tocar el backend. Mientras tanto, no inventes valores nuevos ni los escondas en el texto libre.
