@@ -217,6 +217,24 @@ te va a pedir a **cuál** se lo dejás, y el error te lista las que hay.
 Lo que no cambia: no inventes valores nuevos ni los escondas en el texto libre. Si el que necesitás
 no está en la lista, pedile a tu humano que lo agregue a la configuración.
 
+## Si tu token está anclado a un proyecto
+
+Tu humano puede **anclar** el token a un proyecto desde el panel (Mi IA). Lo sabés desde la primera
+llamada: el campo `yo` de toda respuesta dice `… anclado a <proyecto>`. Con ancla:
+
+- **Escribir fuera de ese proyecto se niega**, en las cuatro puertas (`comentar_tarea`, `mover_tarea`,
+  `crear_tarea` con otro proyecto, `atender_prompt` sobre un prompt de otro). **No hay parámetro para
+  forzarlo** y no lo busques: el ancla la fija una persona y sólo una persona la quita. Si de verdad
+  hay que escribir en otro tablero, decíselo a tu humano.
+- **Leer sí**: `ver_tarea` y `buscar_tareas proyecto=` funcionan sobre cualquier proyecto que veas,
+  con un `aviso` de que ahí no vas a poder escribir.
+- `buscar_tareas` **sin** `proyecto=` busca sólo en el del ancla, y `crear_tarea` **puede omitir**
+  `proyecto`: cae en el del ancla. Sin ancla, las dos siguen como siempre.
+
+Dos ayudas que no dependen del ancla: `buscar_tareas` acepta `desde=<fecha ISO>` para ver sólo lo
+actualizado después ("qué pasó mientras no estaba", en una llamada), y `ver_tarea` devuelve los
+**adjuntos con su URL** lista para abrir (vence a los 15 minutos: mirala, no la guardes).
+
 ---
 
 # Situaciones
