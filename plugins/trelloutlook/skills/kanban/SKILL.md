@@ -233,7 +233,7 @@ llamada: el campo `yo` de toda respuesta dice `… anclado a <proyecto>`. Con an
 
 Dos ayudas que no dependen del ancla: `buscar_tareas` acepta `desde=<fecha ISO>` para ver sólo lo
 actualizado después ("qué pasó mientras no estaba", en una llamada), y `ver_tarea` devuelve los
-**adjuntos con su URL** lista para abrir (vence a los 15 minutos: mirala, no la guardes).
+**adjuntos con su URL** lista para abrir, **incluidas las imágenes pegadas en la descripción** (`embebida: true`); la URL vence a los 15 minutos: mirala, no la guardes.
 
 ---
 
